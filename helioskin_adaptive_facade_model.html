@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HelioSkin | Hyper-Realistic Adaptive Facade</title>
+    <style>
+        :root {
+            --bg-color: #090d16;
+            --panel-bg: rgba(15, 23, 42, 0.78);
+            --panel-border: rgba(255, 255, 255, 0.15);
+            --accent-cyan: #38bdf8;
+            --accent-blue: #0284c7;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: var(--bg-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text-main);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        /* Glassmorphism Control Panel */
+        #ui-panel {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            z-index: 10;
+            width: 330px;
+            padding: 24px;
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .header-brand {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 12px;
+            margin-bottom: 4px;
+        }
+
+        .header-brand h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff 0%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-brand p {
+            margin: 4px 0 0 0;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent-cyan);
+        }
+
+        /* Mode Selection Buttons */
+        .btn-mode {
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 600;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all 0.25s ease;
+        }
+
+        .btn-mode:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateX(3px);
+        }
+
+        .btn-mode.active {
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.22) 0%, rgba(2, 132, 199, 0.32) 100%);
+            color: #ffffff;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 18px rgba(56, 189, 248, 0.25);
+        }
+
+        .btn-mode .badge {
+            font-size: 10px;
+            padding: 3px 7px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
+        }
+
+        .btn-mode.active .badge {
+            background: var(--accent-cyan);
+            color: #0f172a;
+            font-weight: 800;
+        }
+
+        .divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 4px 0;
+        }
+
+        /* Exploded Action Button */
+        #btn-exploded {
+            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+            color: #ffffff;
+            border: 1px solid #38bdf8;
+            font-weight: 700;
+            text-align: center;
+            justify-content: center;
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35);
+        }
+
+        #btn-exploded:hover {
+            filter: brightness(1.15);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(56, 189, 248, 0.45);
+        }
+
+        #btn-exploded.active {
+            background: linear-gradient(135deg, #e11d48 0%, #be123c 100%);
+            border-color: #fb7185;
+            box-shadow: 0 0 18px rgba(244, 63, 94, 0.45);
+        }
+
+        /* Toggle Container */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 42px;
+            height: 22px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255, 255, 255, 0.2);
+            transition: .3s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--accent-cyan);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(20px);
+        }
+
+        /* Interactive 3D Callout Cards */
+        .layer-label-card {
+            position: absolute;
+            width: 300px;
+            padding: 16px;
+            background: rgba(15, 23, 42, 0.92);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            border-radius: 14px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 0 0 15px rgba(56, 189, 248, 0.2);
+            color: #f8fafc;
+            font-size: 11px;
+            line-height: 1.5;
+            pointer-events: none;
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.9);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            z-index: 20;
+        }
+
+        .layer-label-card.visible {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .layer-label-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+            padding-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .layer-label-card ul {
+            margin: 0;
+            padding-left: 14px;
+        }
+
+        .layer-label-card li {
+            margin-bottom: 4px;
+            color: #cbd5e1;
+        }
+
+        .layer-label-card li strong {
+            color: #ffffff;
+        }
+
+        /* Bottom Instruction Bar */
+        #instruction-bar {
+            position: absolute;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 8px 22px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            pointer-events: none;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+        }
+
+        @media (max-width: 640px) {
+            #ui-panel {
+                width: calc(100vw - 32px);
+                top: 16px;
+                left: 16px;
+                padding: 16px;
+            }
+            .layer-label-card {
+                width: 240px;
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 3D WebGL Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- Glassmorphism Left Control Panel -->
+    <div id="ui-panel">
+        <div class="header-brand">
+            <h1>HelioSkin</h1>
+            <p>Adaptive Facade System</p>
+        </div>
+
+        <button id="btn-mode-1" class="btn-mode active" onclick="setFacadeMode(1)">
+            <span>1. Cool & Clear</span>
+            <span class="badge">T &lt; 28°C</span>
+        </button>
+        <button id="btn-mode-2" class="btn-mode" onclick="setFacadeMode(2)">
+            <span>2. Activated Shading</span>
+            <span class="badge">T &gt; 28°C</span>
+        </button>
+        <button id="btn-mode-3" class="btn-mode" onclick="setFacadeMode(3)">
+            <span>3. Heat Extraction</span>
+            <span class="badge">Dynamic Flow</span>
+        </button>
+        <button id="btn-mode-4" class="btn-mode" onclick="setFacadeMode(4)">
+            <span>4. Reflective Mode</span>
+            <span class="badge">Solar Barrier</span>
+        </button>
+
+        <div class="divider"></div>
+
+        <button id="btn-exploded" onclick="toggleExplodedView()">
+            ⬌ Exploded View
+        </button>
+
+        <div class="toggle-row">
+            <span>Show Interactive Labels</span>
+            <label class="switch">
+                <input type="checkbox" id="label-toggle" onchange="toggleLabelsVisibility()">
+                <span class="slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <!-- 3D Callout Cards Linked to Facade Layers -->
+    <div id="label-layer1" class="layer-label-card">
+        <h3>🛡️ Layer 1: Exterior Protective Layer</h3>
+        <ul>
+            <li><strong>Low-E Glass:</strong> Ultra-clear low-iron exterior safety pane.</li>
+            <li><strong>Hydrogel Substrate:</strong> Thermo-responsive matrix transforming transparent to opaque white > 28°C.</li>
+            <li><strong>Solar Barrier:</strong> High-reflectance outer surface blocking up to 95% solar heat gain.</li>
+        </ul>
+    </div>
+
+    <div id="label-layer2" class="layer-label-card">
+        <h3>🌀 Layer 2: Active Microfluidic Network</h3>
+        <ul>
+            <li><strong>Serpentine Channels:</strong> 1mm zigzag micro-channels with continuous coolant fluid flow.</li>
+            <li><strong>Heat Exchanger Manifold:</strong> Top recovery manifold gathering absorbed thermal heat.</li>
+            <li><strong>Coolant Return Pipe:</strong> Down-flow recirculation line forming a sealed hydraulic circuit.</li>
+            <li><strong>Micro-Circulation Pump:</strong> Low-power pump unit driving continuous particle circulation.</li>
+        </ul>
+    </div>
+
+    <div id="label-layer3" class="layer-label-card">
+        <h3>🏛️ Layer 3: Interior Structural Frame</h3>
+        <ul>
+            <li><strong>Interior IGU Pane:</strong> Double-glazed argon-insulated glass preventing indoor heat loss.</li>
+            <li><strong>Aluminum Mullions:</strong> Heavy-duty perimeter structural framework grid.</li>
+            <li><strong>Thermal Break Seals:</strong> High-durability elastomer seals preventing thermal bridging.</li>
+        </ul>
+    </div>
+
+    <!-- Instruction Bar -->
+    <div id="instruction-bar">
+        🖱️ Left-Click & Drag to Rotate &bull; 📜 Scroll to Zoom &bull; 👆 Select Mode
+    </div>
+
+    <!-- ES Module Import Maps for Three.js -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.150.1/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.150.1/examples/jsm/"
+        }
+    }
+    </script>
+
+    <!-- Main 3D Engine & Logic Script -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+        // --- 1. SCENE, CAMERA & RENDERER SETUP ---
+        const container = document.getElementById('canvas-container');
+        
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x090d16);
+
+        const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(4.6, 1.2, 5.8);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.3;
+        container.appendChild(renderer.domElement);
+
+        // Realistic Studio Environment Reflections
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+        scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
+
+        // Cinematic Lighting setup
+        const keyLight = new THREE.DirectionalLight(0xffffff, 3.2);
+        keyLight.position.set(6, 12, 8);
+        scene.add(keyLight);
+
+        const fillLight = new THREE.DirectionalLight(0x38bdf8, 1.6);
+        fillLight.position.set(-6, -2, -4);
+        scene.add(fillLight);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        // Orbit Controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI / 1.8;
+        controls.minDistance = 2.2;
+        controls.maxDistance = 12.0;
+
+        // --- 2. MATERIALS & RENDER-ORDER STRATEGY ---
+        //
+        // RENDER ORDER STRATEGY FOR 100% VISIBLE MICRO-PARTICLES:
+        // Render Order 0: Heatmap Shader Plane (Background behind tubes)
+        // Render Order 1: Back Glass IGU
+        // Render Order 2: Microfluidic Tubing (Transparent physical tube glass, depthWrite: false)
+        // Render Order 3: Instanced Micro-Particle Flow (Emissive glowing spheres inside tubes, depthWrite: true)
+        // Render Order 4: Outer Front Glass Pane (Low-E Glass, transmission 0.95, depthWrite: false)
+        //
+
+        // Front Low-E Glass Pane
+        const frontGlassMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xffffff,
+            metalness: 0.02,
+            roughness: 0.03,
+            transmission: 0.95,
+            ior: 1.52,
+            thickness: 0.05,
+            clearcoat: 1.0,
+            clearcoatRoughness: 0.02,
+            transparent: true,
+            opacity: 0.98,
+            depthWrite: false
+        });
+
+        // Back Insulated Glass Unit (IGU) Pane
+        const backGlassMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xf0fdf4,
+            metalness: 0.02,
+            roughness: 0.04,
+            transmission: 0.92,
+            ior: 1.50,
+            thickness: 0.05,
+            clearcoat: 0.8,
+            transparent: true,
+            opacity: 0.95,
+            depthWrite: false
+        });
+
+        // Structural Aluminum Mullions
+        const frameMaterial = new THREE.MeshStandardMaterial({
+            color: 0x1e293b,
+            roughness: 0.25,
+            metalness: 0.85
+        });
+
+        // Transparent Microfluidic Tubing
+        const tubeMaterial = new THREE.MeshPhysicalMaterial({
+            color: 0xe0f2fe,
+            metalness: 0.05,
+            roughness: 0.08,
+            transmission: 0.88,
+            ior: 1.33,
+            thickness: 0.03,
+            transparent: true,
+            opacity: 0.55,
+            side: THREE.DoubleSide,
+            depthWrite: false
+        });
+
+        // Metallic Components (Manifold Header & Return Line)
+        const metalHardwareMaterial = new THREE.MeshStandardMaterial({
+            color: 0x94a3b8,
+            metalness: 0.92,
+            roughness: 0.25
+        });
+
+        // Micro-Pump Housing Base
+        const pumpHousingMaterial = new THREE.MeshStandardMaterial({
+            color: 0x0f172a,
+            metalness: 0.82,
+            roughness: 0.3
+        });
+
+        // --- 3. SCENE GROUPS FOR EXPLODED VIEW ---
+        const layer1Group = new THREE.Group(); // Front Outer Glass Layer
+        const layer2Group = new THREE.Group(); // Microfluidic Active Loop Layer
+        const layer3Group = new THREE.Group(); // Back Glass IGU & Frame Layer
+
+        scene.add(layer1Group);
+        scene.add(layer2Group);
+        scene.add(layer3Group);
+
+        // --- 4. GEOMETRY CONSTRUCTION ---
+        // Layer 1: Front Low-E Glass Pane
+        const frontGlassGeo = new THREE.BoxGeometry(2.8, 3.8, 0.02);
+        const frontGlassMesh = new THREE.Mesh(frontGlassGeo, frontGlassMaterial);
+        frontGlassMesh.position.set(0, 0, 0.05);
+        frontGlassMesh.renderOrder = 4;
+        layer1Group.add(frontGlassMesh);
+
+        // Layer 3: Back Glass IGU Pane & Aluminum Framework
+        const backGlassGeo = new THREE.BoxGeometry(2.8, 3.8, 0.02);
+        const backGlassMesh = new THREE.Mesh(backGlassGeo, backGlassMaterial);
+        backGlassMesh.position.set(0, 0, -0.05);
+        backGlassMesh.renderOrder = 1;
+        layer3Group.add(backGlassMesh);
+
+        // Structural Aluminum Mullions (Perimeter Frame)
+        const frameThickness = 0.12;
+        const frameDepth = 0.18;
+        const topMullion = new THREE.Mesh(new THREE.BoxGeometry(3.0, frameThickness, frameDepth), frameMaterial);
+        topMullion.position.set(0, 1.95, 0);
+        const bottomMullion = new THREE.Mesh(new THREE.BoxGeometry(3.0, frameThickness, frameDepth), frameMaterial);
+        bottomMullion.position.set(0, -1.95, 0);
+        const leftMullion = new THREE.Mesh(new THREE.BoxGeometry(frameThickness, 4.0, frameDepth), frameMaterial);
+        leftMullion.position.set(-1.45, 0, 0);
+        const rightMullion = new THREE.Mesh(new THREE.BoxGeometry(frameThickness, 4.0, frameDepth), frameMaterial);
+        rightMullion.position.set(1.45, 0, 0);
+        layer3Group.add(topMullion, bottomMullion, leftMullion, rightMullion);
+
+        // Closed-Loop Serpentine Path for Fluid Circuit
+        const points = [];
+        const rows = 12;
+        const startY = -1.6;
+        const endY = 1.6;
+        const stepY = (endY - startY) / rows;
+        const minX = -1.15;
+        const maxX = 1.15;
+
+        // Serpentine Zigzag Path
+        for (let r = 0; r <= rows; r++) {
+            const currentY = startY + r * stepY;
+            if (r % 2 === 0) {
+                points.push(new THREE.Vector3(minX, currentY, 0));
+                points.push(new THREE.Vector3(maxX, currentY, 0));
+            } else {
+                points.push(new THREE.Vector3(maxX, currentY, 0));
+                points.push(new THREE.Vector3(minX, currentY, 0));
+            }
+        }
+        // Top Manifold & Return Line Back to Micro-Pump Base
+        points.push(new THREE.Vector3(minX - 0.1, endY + 0.1, 0));
+        points.push(new THREE.Vector3(minX - 0.1, startY - 0.1, 0));
+
+        const serpentineCurve = new THREE.CatmullRomCurve3(points, true);
+        const LUT_RESOLUTION = 1200;
+        const curveLUT = serpentineCurve.getSpacedPoints(LUT_RESOLUTION);
+
+        // Transparent Microfluidic Tubing Mesh
+        const tubeGeometry = new THREE.TubeGeometry(serpentineCurve, 400, 0.028, 12, true);
+        const tubeMesh = new THREE.Mesh(tubeGeometry, tubeMaterial);
+        tubeMesh.renderOrder = 2;
+        layer2Group.add(tubeMesh);
+
+        // Top Heat Exchanger Manifold Header & Base Micro-Pump
+        const manifoldGeo = new THREE.CylinderGeometry(0.045, 0.045, 2.5, 16);
+        const topManifold = new THREE.Mesh(manifoldGeo, metalHardwareMaterial);
+        topManifold.rotation.z = Math.PI / 2;
+        topManifold.position.set(0, 1.72, 0);
+
+        const pumpGeo = new THREE.BoxGeometry(0.28, 0.28, 0.18);
+        const pumpMesh = new THREE.Mesh(pumpGeo, pumpHousingMaterial);
+        pumpMesh.position.set(minX - 0.1, startY - 0.1, 0);
+        layer2Group.add(topManifold, pumpMesh);
+
+        // Animated Thermal Heat Map Shader Plane (Behind Tube Loop)
+        const heatMapShaderMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uOpacity: { value: 0.0 }
+            },
+            vertexShader: `
+                varying vec2 vUv;
+                void main() {
+                    vUv = uv;
+                    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                }
+            `,
+            fragmentShader: `
+                uniform float uTime;
+                uniform float uOpacity;
+                varying vec2 vUv;
+
+                void main() {
+                    float heat = vUv.y + sin(vUv.x * 10.0 + uTime * 2.5) * 0.08;
+                    heat = clamp(heat, 0.0, 1.0);
+                    
+                    vec3 cool = vec3(0.01, 0.52, 0.78);
+                    vec3 warm = vec3(0.98, 0.45, 0.09);
+                    vec3 hot  = vec3(0.94, 0.27, 0.27);
+                    
+                    vec3 color = mix(cool, warm, smoothstep(0.15, 0.65, heat));
+                    color = mix(color, hot, smoothstep(0.65, 0.95, heat));
+                    
+                    gl_FragColor = vec4(color, uOpacity * 0.55);
+                }
+            `,
+            transparent: true,
+            depthWrite: false
+        });
+
+        const heatMapPlane = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.6), heatMapShaderMaterial);
+        heatMapPlane.position.set(0, 0, -0.02);
+        heatMapPlane.renderOrder = 0;
+        layer2Group.add(heatMapPlane);
+
+        // --- 5. INSTANCED MICRO-PARTICLE SYSTEM ---
+        const PARTICLE_COUNT = 1800;
+        const particleMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            roughness: 0.15,
+            metalness: 0.2,
+            transparent: true,
+            opacity: 0.95
+        });
+
+        const particleGeo = new THREE.SphereGeometry(0.016, 8, 8);
+        const instancedParticles = new THREE.InstancedMesh(particleGeo, particleMaterial, PARTICLE_COUNT);
+        instancedParticles.renderOrder = 3;
+        layer2Group.add(instancedParticles);
+
+        const particlesData = [];
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = Math.random() * 0.012;
+            particlesData.push({
+                progress: i / PARTICLE_COUNT,
+                speed: 0.00035 + Math.random() * 0.00015,
+                radialOffsetX: Math.cos(angle) * radius,
+                radialOffsetY: Math.sin(angle) * radius,
+                radialOffsetZ: Math.sin(angle * 2) * radius * 0.5,
+                scale: 1.0,
+                targetScale: 1.0
+            });
+        }
+
+        const defaultColor = new THREE.Color(0x38bdf8);
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+            instancedParticles.setColorAt(i, defaultColor);
+        }
+        if (instancedParticles.instanceColor) {
+            instancedParticles.instanceColor.needsUpdate = true;
+        }
+
+        // --- 7. APP STATE & MODE CONTROLS ---
+        let currentMode = 1;
+        let isExploded = false;
+        let showLabels = false;
+
+        let targetFrontZ = 0.08;
+        let targetBackZ = -0.08;
+
+        // Colors for Mode 3 Thermal Heat Gradient
+        const colorCoolBlue = new THREE.Color(0x0284c7);
+        const colorCyan = new THREE.Color(0x38bdf8);
+        const colorPurple = new THREE.Color(0xa855f7);
+        const colorWarmOrange = new THREE.Color(0xf97316);
+        const colorHotRed = new THREE.Color(0xef4444);
+
+        // Set Facade Operating Mode
+        window.setFacadeMode = function(mode) {
+            currentMode = mode;
+
+            // UI Button Active States
+            for (let i = 1; i <= 4; i++) {
+                const btn = document.getElementById(`btn-mode-${i}`);
+                if (i === mode) btn.classList.add('active');
+                else btn.classList.remove('active');
+            }
+
+            // Reset Default Front Glass Properties
+            frontGlassMaterial.color.set(0xffffff);
+            frontGlassMaterial.metalness = 0.02;
+            frontGlassMaterial.roughness = 0.03;
+            frontGlassMaterial.transmission = 0.95;
+            frontGlassMaterial.opacity = 0.98;
+
+            if (mode === 1) { // Cool & Clear
+                tubeMaterial.color.set(0xe0f2fe);
+                tubeMaterial.transmission = 0.88;
+                tubeMaterial.opacity = 0.50;
+
+                particlesData.forEach(p => { p.targetScale = 1.0; });
+            } 
+            else if (mode === 2) { // Activated Shading (Hydrogel Proliferation)
+                tubeMaterial.color.set(0xe0f2fe);
+                tubeMaterial.transmission = 0.60; // Kept translucent so expanding hydrogel particles stay visible
+                tubeMaterial.opacity = 0.65;
+
+                // Micro-particles expand in size to fill channels
+                particlesData.forEach(p => { p.targetScale = 2.2; });
+            } 
+            else if (mode === 3) { // Heat Extraction
+                tubeMaterial.color.set(0xe0f2fe);
+                tubeMaterial.transmission = 0.80;
+                tubeMaterial.opacity = 0.50;
+
+                particlesData.forEach(p => { p.targetScale = 1.3; });
+            } 
+            else if (mode === 4) { // Reflective Mode
+                tubeMaterial.color.set(0xe0f2fe);
+                tubeMaterial.transmission = 0.80;
+                tubeMaterial.opacity = 0.50;
+
+                // Reflective outer glass with balanced transmission to keep particles clearly visible behind
+                frontGlassMaterial.color.set(0x94a3b8);
+                frontGlassMaterial.metalness = 0.75;
+                frontGlassMaterial.roughness = 0.1;
+                frontGlassMaterial.transmission = 0.65;
+
+                particlesData.forEach(p => { p.targetScale = 1.4; });
+            }
+        };
+
+        // Exploded View Toggle
+        window.toggleExplodedView = function() {
+            isExploded = !isExploded;
+            const btn = document.getElementById('btn-exploded');
+
+            if (isExploded) {
+                targetFrontZ = 0.90;
+                targetBackZ = -0.90;
+                btn.classList.add('active');
+                btn.innerHTML = '⬌ Collapse View';
+            } else {
+                targetFrontZ = 0.08;
+                targetBackZ = -0.08;
+                btn.classList.remove('active');
+                btn.innerHTML = '⬌ Exploded View';
+            }
+        };
+
+        // Labels Toggle Switch
+        window.toggleLabelsVisibility = function() {
+            showLabels = document.getElementById('label-toggle').checked;
+            if (!showLabels) {
+                document.querySelectorAll('.layer-label-card').forEach(el => el.classList.remove('visible'));
+            }
+        };
+
+        // --- 8. 3D CALLOUT LABELS PROJECTION ---
+        const anchorL1 = new THREE.Vector3(1.35, 0.85, 0);
+        const anchorL2 = new THREE.Vector3(1.35, 0.0, 0);
+        const anchorL3 = new THREE.Vector3(1.35, -0.85, 0);
+
+        function updateLabelsProjection() {
+            if (!showLabels) return;
+
+            const projectAnchor = (cardId, anchorVec, zOffset) => {
+                const card = document.getElementById(cardId);
+                const pos = anchorVec.clone();
+                pos.z += zOffset;
+                pos.project(camera);
+
+                if (pos.z > 1) {
+                    card.classList.remove('visible');
+                    return;
+                }
+
+                const screenX = (pos.x * 0.5 + 0.5) * window.innerWidth;
+                const screenY = (-pos.y * 0.5 + 0.5) * window.innerHeight;
+
+                card.style.left = `${screenX + 165}px`;
+                card.style.top = `${screenY}px`;
+
+                if (isExploded || showLabels) card.classList.add('visible');
+                else card.classList.remove('visible');
+            };
+
+            projectAnchor('label-layer1', anchorL1, layer1Group.position.z);
+            projectAnchor('label-layer2', anchorL2, layer2Group.position.z);
+            projectAnchor('label-layer3', anchorL3, layer3Group.position.z);
+        }
+
+        // --- 9. ANIMATION & RENDER LOOP ---
+        const matrixDummy = new THREE.Matrix4();
+        const positionDummy = new THREE.Vector3();
+        const scaleVector = new THREE.Vector3();
+        const rotationQuaternion = new THREE.Quaternion(); // Identity quaternion to prevent matrix scale accumulation
+        const instanceColor = new THREE.Color();
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+            const elapsedTime = clock.getElapsedTime();
+
+            // Smooth Exploded Layer Motion
+            layer1Group.position.z += (targetFrontZ - layer1Group.position.z) * 0.08;
+            layer3Group.position.z += (targetBackZ - layer3Group.position.z) * 0.08;
+
+            // Heat Map Shader Animation & Smooth Fade
+            heatMapShaderMaterial.uniforms.uTime.value = elapsedTime;
+            const targetHeatOpacity = (currentMode === 3) ? 0.85 : 0.0;
+            heatMapShaderMaterial.uniforms.uOpacity.value += (targetHeatOpacity - heatMapShaderMaterial.uniforms.uOpacity.value) * 0.08;
+
+            controls.update();
+            updateLabelsProjection();
+
+            // Dynamic Particle Velocity multiplier
+            const speedFactor = (currentMode === 3) ? 2.4 : (currentMode === 2) ? 1.6 : 1.0;
+
+            // Particle Movement & Proliferation Loop
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                const p = particlesData[i];
+
+                // Continuous progress along closed loop
+                p.progress += p.speed * speedFactor;
+                if (p.progress >= 1.0) p.progress -= 1.0;
+
+                // Lookup position on curve
+                const lutIndex = Math.floor(p.progress * (LUT_RESOLUTION - 1));
+                const lutPos = curveLUT[lutIndex];
+
+                positionDummy.set(
+                    lutPos.x + p.radialOffsetX,
+                    lutPos.y + p.radialOffsetY,
+                    lutPos.z + p.radialOffsetZ
+                );
+
+                // Lerp particle scale for dynamic proliferation expansion
+                p.scale += (p.targetScale - p.scale) * 0.08;
+                scaleVector.set(p.scale, p.scale, p.scale);
+
+                // Reset and compose matrix cleanly to avoid compounding scale accumulation bug
+                matrixDummy.compose(positionDummy, rotationQuaternion, scaleVector);
+
+                instancedParticles.setMatrixAt(i, matrixDummy);
+
+                // Explicit color assignments for all 4 operating modes
+                if (currentMode === 3) {
+                    // Thermal Heat Gradient (Cool Blue -> Cyan -> Purple -> Orange -> Hot Red)
+                    const prog = p.progress;
+                    if (prog < 0.25) {
+                        instanceColor.lerpColors(colorCoolBlue, colorCyan, prog / 0.25);
+                    } else if (prog < 0.50) {
+                        instanceColor.lerpColors(colorCyan, colorPurple, (prog - 0.25) / 0.25);
+                    } else if (prog < 0.75) {
+                        instanceColor.lerpColors(colorPurple, colorWarmOrange, (prog - 0.50) / 0.25);
+                    } else {
+                        instanceColor.lerpColors(colorWarmOrange, colorHotRed, (prog - 0.75) / 0.25);
+                    }
+                } else if (currentMode === 2) {
+                    // Shading Mode: Hydrogel expanding white particles
+                    instanceColor.setHex(0xe0f2fe);
+                } else if (currentMode === 4) {
+                    // Reflective Mode: Metallic silver reflective particles
+                    instanceColor.setHex(0x38bdf8);
+                } else {
+                    // Mode 1: Cool cyan micro-particles
+                    instanceColor.setHex(0x38bdf8);
+                }
+
+                instancedParticles.setColorAt(i, instanceColor);
+            }
+
+            instancedParticles.instanceMatrix.needsUpdate = true;
+            if (instancedParticles.instanceColor) {
+                instancedParticles.instanceColor.needsUpdate = true;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // Window Resize Handler
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Initialize App in Mode 1
+        setFacadeMode(1);
+        animate();
+    </script>
+</body>
+</html>
